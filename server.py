@@ -2,7 +2,7 @@ from flask import Flask
 from configparser import ConfigParser 
 import nuki 
 from nacl.public import PrivateKey 
-from flask import jsonify
+from flask import jsonify, request
 import logging
 from pathlib import Path
 
@@ -61,13 +61,31 @@ def open_door(door):
 
 @app.route("/<door>/state")
 def state(door):
-    return nuki.Nuki(config[door], configfile).readLockState().show()
+    state = nuki.Nuki(config[door], configfile).readLockState()
+    if request.accept_mimetypes.accept_html:
+        return state.show()
+    else:
+        return jsonify({
+            'status': state.nukiState,
+            'lockState': state.lockState,
+            'trigger': state.trigger,
+            'currentTime': state.currentTime,
+            'timeOffset': state.timeOffset,
+            'batteryStatus': state.criticalBattery,
+            'chargingBattery': state.chargingBattery,
+            'batteryPercentage': state.BatteryPercentage,
+            'doorSensor': state.Doorsensor,
+            })
 
 @app.route("/<door>/logs")
 def get_log_entries(door):
     return jsonify(nuki.Nuki(config[door], configfile).getLogEntries(1, "%04x" % 0000))
 
 def execute_action(type, door):
-    return nuki.Nuki(config[door], configfile).lockAction(type).show()
+    res = nuki.Nuki(config[door], configfile).lockAction(type)
+    if request.accept_mimetypes.accept_html:
+        return res.show()
+    else:
+        return jsonify({'status': res.status})
 
 
